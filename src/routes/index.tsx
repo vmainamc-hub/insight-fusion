@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DERIV_SYMBOLS, useDerivStream } from "@/hooks/useDerivStream";
 import { computeCombinedVerdict, MIN_SAMPLE, type CombinedVerdict } from "@/lib/fusion/verdict";
+import type { LiquidityOpportunity } from "@/lib/liquidity/liquidity-v3";
 import { VerdictCard } from "@/components/terminal/verdict-card";
 import { VerdictBadge } from "@/components/terminal/verdict-badge";
 import { DigitDistribution } from "@/components/terminal/digit-distribution";
@@ -38,7 +39,7 @@ function Terminal() {
   const { ticks, status, error } = useDerivStream(symbol, running);
 
   const [verdict, setVerdict] = useState<CombinedVerdict | null>(null);
-  const prevV3 = useRef<Record<string, never>>({});
+  const prevV3 = useRef<Record<string, LiquidityOpportunity>>({});
   const lastRun = useRef(0);
 
   useEffect(() => {
@@ -51,7 +52,9 @@ function Terminal() {
     const now = Date.now();
     if (now - lastRun.current < RECOMPUTE_MS) return;
     lastRun.current = now;
-    setVerdict(computeCombinedVerdict(symbol, ticks, prevV3.current));
+    const next = computeCombinedVerdict(symbol, ticks, prevV3.current);
+    prevV3.current = next.analysis?.v3Opportunities ?? prevV3.current;
+    setVerdict(next);
   }, [ticks, running, symbol]);
 
   const last = ticks.length ? lastDigit(ticks[ticks.length - 1]!.price) : null;
